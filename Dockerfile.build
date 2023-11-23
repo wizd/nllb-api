@@ -8,15 +8,11 @@ WORKDIR /
 
 COPY pyproject.toml .
 COPY dist/ctranslate2-3.21.0-cp311-cp311-linux_x86_64.whl /ctranslate2-3.21.0-cp311-cp311-linux_x86_64.whl
-COPY dist/libctranslate2.so.3.21.0 /lib/x86_64-linux-gnu
-RUN ln -s /lib/x86_64-linux-gnu/libctranslate2.so.3.21.0 /lib/x86_64-linux-gnu/libctranslate2.so.3
-RUN ln -s /lib/x86_64-linux-gnu/libctranslate2.so.3 /lib/x86_64-linux-gnu/libctranslate2.so
-RUN ldconfig
 
-RUN apt update
-RUN apt install -y curl
-RUN curl -sSL https://install.python-poetry.org | python -
-RUN poetry install --only main
+RUN apt update && \
+     apt install -y curl vim && \
+     curl -sSL https://install.python-poetry.org | python - && \
+     poetry install --only main
 
 FROM caddy:builder-alpine as caddy-builder
 
@@ -33,22 +29,20 @@ ENV PYTHONDONTWRITEBYTECODE 1
 
 RUN useradd -m -u 1000 user
 
+RUN apt update && apt install -y python3-pip
+
+COPY dist/libctranslate2.so.3.21.0 /lib/x86_64-linux-gnu/libctranslate2.so.3
+COPY dist/libctranslate2.so.3.21.0 /lib/x86_64-linux-gnu/libctranslate2.so
+
 USER user
+
+# Install PyTorch
+RUN pip3 install torch
 
 WORKDIR $HOME/app
 
 COPY --chown=user --from=caddy-builder  /usr/bin/caddy /usr/bin/caddy
 COPY --chown=user --from=python-builder /usr/local/    /usr/local/
 COPY --chown=user . $HOME/app
-
-ENV USEREXEC=$USER
-
-USER root
-COPY dist/libctranslate2.so.3.21.0 /lib/x86_64-linux-gnu
-RUN ln -s /lib/x86_64-linux-gnu/libctranslate2.so.3.21.0 /lib/x86_64-linux-gnu/libctranslate2.so.3
-RUN ln -s /lib/x86_64-linux-gnu/libctranslate2.so.3 /lib/x86_64-linux-gnu/libctranslate2.so
-RUN ldconfig
-
-USER $USEREXEC
 
 CMD ["supervisord"]

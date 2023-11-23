@@ -1,5 +1,5 @@
 from typing import Generator
-import os
+from os import environ as env
 
 from ctranslate2 import Translator as CTranslator
 from huggingface_hub import snapshot_download
@@ -29,18 +29,21 @@ class Translator:
         -------
         download and load the model
         """
-        model_path = snapshot_download('winstxnhdw/nllb-200-distilled-1.3B-ct2-int8')
-        
+
         # Get the CUDA_VISIBLE_DEVICES environment variable
-        cuda_visible_devices = os.environ.get('CUDA_VISIBLE_DEVICES')
+        cuda_visible_devices = env.get('CUDA_VISIBLE_DEVICES')
+
+        model_path = snapshot_download('winstxnhdw/nllb-200-distilled-1.3B-ct2-int8')
 
         if cuda_visible_devices is not None:
-            # If CUDA_VISIBLE_DEVICES is set, use the specified GPU devices
+            # 如果设置了CUDA_VISIBLE_DEVICES，使用指定的GPU设备
             device_indexes = list(map(int, cuda_visible_devices.split(',')))
-            cls.translator = CTranslator(model_path, device='cuda', compute_type='auto', device_index=device_indexes)
+            cls.translator = CTranslator(model_path, device='cuda', compute_type='auto')
+            print("启用了CUDA, GPU: ", cuda_visible_devices)
         else:
-            # If CUDA_VISIBLE_DEVICES is not set, use only CPU
+            # 如果没有设置CUDA_VISIBLE_DEVICES，只使用CPU
             cls.translator = CTranslator(model_path, compute_type='auto', inter_threads=Config.worker_count)
+            print("默认使用CPU, GPU: ", cuda_visible_devices)
 
         cls.tokeniser = NllbTokenizerFast.from_pretrained(model_path, local_files_only=True)
 
